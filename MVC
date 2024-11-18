@@ -1,0 +1,215 @@
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
+// Modelo
+class Produto {
+  final int id;
+  String nome;
+  String preco;
+  String descricao;
+
+  Produto({required this.id, required this.nome, required this.preco, required this.descricao});
+}
+
+// DAO
+class ProdutoDAO extends ChangeNotifier {
+  List<Produto> _produtos = [];
+  int _nextId = 1;
+
+  List<Produto> get produtos => _produtos;
+
+  void adicionarProduto(String nome, String preco, String descricao) {
+    _produtos.add(Produto(id: _nextId++, nome: nome, preco: preco, descricao: descricao));
+    notifyListeners();
+  }
+
+  void atualizarProduto(int id, String novoNome, String novoPreco, String novaDescricao) {
+    Produto? produto = _produtos.firstWhere((produto) => produto.id == id);
+    if (produto != null) {
+      produto.nome = novoNome;
+      produto.preco = novoPreco;
+      produto.descricao = novaDescricao;
+      notifyListeners();
+    }
+  }
+
+  void removerProduto(int id) {
+    _produtos.removeWhere((produto) => produto.id == id);
+    notifyListeners();
+  }
+}
+
+// View
+class LojaDocesView extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final produtoDAO = Provider.of<ProdutoDAO>(context);
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Row(
+          children: [
+            Image.network(
+              'https://raw.githubusercontent.com/Mat250201/Portfolio-DS/refs/heads/main/doces_icon.png',
+              height: 50,
+              errorBuilder: (context, error, stackTrace) {
+                return Icon(Icons.broken_image, color: Colors.white);
+              },
+            ),
+            SizedBox(width: 40),
+            Text("Doces & Delícias"),
+          ],
+        ),
+        backgroundColor: Colors.pinkAccent,
+      ),
+      body: ListView.builder(
+        itemCount: produtoDAO.produtos.length,
+        itemBuilder: (context, index) {
+          final produto = produtoDAO.produtos[index];
+          return Card(
+            child: ListTile(
+              title: Text(produto.nome, style: TextStyle(fontWeight: FontWeight.bold)),
+              subtitle: Text("Preço: ${produto.preco}\n${produto.descricao}"),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    icon: Icon(Icons.edit, color: Colors.blue),
+                    onPressed: () {
+                      _exibirDialogoEdicao(context, produto);
+                    },
+                  ),
+                  IconButton(
+                    icon: Icon(Icons.delete, color: Colors.red),
+                    onPressed: () {
+                      produtoDAO.removerProduto(produto.id);
+                    },
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          _exibirDialogoAdicao(context);
+        },
+        backgroundColor: Colors.pink,
+        child: Icon(Icons.add),
+      ),
+    );
+  }
+
+  void _exibirDialogoAdicao(BuildContext context) {
+    String nome = '';
+    String preco = '';
+    String descricao = '';
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text("Adicionar Produto"),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                onChanged: (value) => nome = value,
+                decoration: InputDecoration(labelText: "Nome do Produto"),
+              ),
+              TextField(
+                onChanged: (value) => preco = value,
+                decoration: InputDecoration(labelText: "Preço"),
+              ),
+              TextField(
+                onChanged: (value) => descricao = value,
+                decoration: InputDecoration(labelText: "Descrição"),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                if (nome.isNotEmpty && preco.isNotEmpty && descricao.isNotEmpty) {
+                  Provider.of<ProdutoDAO>(context, listen: false).adicionarProduto(nome, preco, descricao);
+                  Navigator.of(context).pop();
+                }
+              },
+              child: Text("Adicionar"),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _exibirDialogoEdicao(BuildContext context, Produto produto) {
+    String novoNome = produto.nome;
+    String novoPreco = produto.preco;
+    String novaDescricao = produto.descricao;
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text("Editar Produto"),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                onChanged: (value) => novoNome = value,
+                controller: TextEditingController(text: produto.nome),
+                decoration: InputDecoration(labelText: "Nome do Produto"),
+              ),
+              TextField(
+                onChanged: (value) => novoPreco = value,
+                controller: TextEditingController(text: produto.preco),
+                decoration: InputDecoration(labelText: "Preço"),
+              ),
+              TextField(
+                onChanged: (value) => novaDescricao = value,
+                controller: TextEditingController(text: produto.descricao),
+                decoration: InputDecoration(labelText: "Descrição"),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                if (novoNome.isNotEmpty && novoPreco.isNotEmpty && novaDescricao.isNotEmpty) {
+                  Provider.of<ProdutoDAO>(context, listen: false)
+                      .atualizarProduto(produto.id, novoNome, novoPreco, novaDescricao);
+                  Navigator.of(context).pop();
+                }
+              },
+              child: Text("Atualizar"),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+// Main
+void main() {
+  runApp(LojaDocesApp());
+}
+
+class LojaDocesApp extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return ChangeNotifierProvider(
+      create: (_) => ProdutoDAO(),
+      child: MaterialApp(
+        title: 'Doces & Delícias',
+        home: LojaDocesView(),
+        theme: ThemeData(
+          primarySwatch: Colors.pink,
+          scaffoldBackgroundColor: Colors.white,
+        ),
+      ),
+    );
+  }
+}
